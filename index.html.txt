@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nanojpg</title> <!-- Title set to nanojpg --><!-- Load Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide icons --><script src="https://unpkg.com/lucide-react@0.395.0/dist/lucide-react.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand-primary': '#f3b61a',
+                        'brand-secondary': '#2a2a2e',
+                        'brand-dark': '#1a1a1d',
+                        'brand-light': '#f5f5f5',
+                        'brand-accent': '#f3b61a',
+                    },
+                    keyframes: {
+                        spin: {
+                            '0%': { transform: 'rotate(0deg)' },
+                            '100%': { transform: 'rotate(360deg)' },
+                        },
+                        pulse: {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '.5' },
+                        }
+                    } 
+                } 
+            } 
+        }; 
+    </script> 
+
+    <style> 
+        /* Keyframes for support button animation */
+        @keyframes heartbeat {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        .animate-heartbeat {
+          animation: heartbeat 1.5s ease-in-out infinite;
+        }
+
+        /* NEW: Styles for image zoom/pan */
+        #fullscreen-image {
+            transition: transform 0.1s ease-out; 
+            transform-origin: center center;
+            cursor: zoom-in;
+        }
+        #fullscreen-modal.zoomed #fullscreen-image {
+            cursor: grab;
+        }
+        #fullscreen-modal.zoomed.grabbing #fullscreen-image {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="bg-brand-dark text-brand-light min-h-screen p-4 md:p-8">
+
+    <div id="app" class="max-w-7xl mx-auto">
+        
+        <!-- Header --><header class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-2">
+                <!-- 
+                    REMOVED: img placeholder
+                    ADDED: Text-based logo with emoji
+                -->
+                <div class="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
+                    <span>NANOJPG</span>
+                    <span title="Powered by Nano Banana">⚡</span>
+                </div>
+            </div>
+            <!-- REMOVED: Model Info -->
+            <!-- REMOVED: Login/Sign Up Buttons -->
+            <!-- ADDED: Telegram/Support Link --><div class="hidden md:flex items-center">
+                <a id="support-link" 
+                   href="https://t.me/Digitalflowwww" 
+                   target="_blank" 
+                   rel="noopener noreferrer" 
+                   class="flex items-center gap-2 bg-brand-primary text-brand-dark font-bold py-2 px-4 rounded-lg hover:bg-yellow-400 transition-all animate-heartbeat"
+                   title="Support me">
+                    
+                    <!-- Ko-fi/Coffee icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-coffee w-5 h-5">
+                        <path d="M17 8h-7a4 4 0 0 0-4 4 4 4 0 0 0 4 4h7a4 4 0 0 0 4-4 4 4 0 0 0-4-4Z"></path>
+                        <path d="M6 8v8"></path>
+                        <path d="M19 8v8"></path>
+                    </svg>
+                    <span>Support Me</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Content Grid --><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <!-- Left Panel: Controls --><div class="lg:col-span-1 flex flex-col gap-6">
+                
+                <!-- Mode Tabs --><div class="grid grid-cols-2 gap-2 bg-brand-secondary p-1 rounded-lg">
+                    <button id="tab-image-to-image" class="tab-btn active">
+                        <svg class="lucide lucide-image w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                        Image to Image
+                    </button>
+                    <button id="tab-text-to-image" class="tab-btn">
+                        <svg class="lucide lucide-text w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6.1H3M21 12.1H3M11 18.1H3"/></svg>
+                        Text to Image
+                    </button>
+                </div>
+
+                <!-- Control Panel --><div class="bg-brand-secondary border border-gray-700 rounded-lg p-4 flex flex-col gap-5">
+                    
+                    <!-- Image Upload Section (Image-to-Image only) --><div id="image-upload-section">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-lg font-semibold text-white">Reference Images</h3>
+                            <span id="image-counter" class="text-sm text-gray-400">0/9</span>
+                        </div>
+                        
+                        <!-- Preview Grid --><div id="image-previews" class="grid grid-cols-3 gap-3 mb-3 min-h-[80px]">
+                            <!-- Previews will be injected here --></div>
+
+                        <!-- Add Image Button --><label for="file-upload" class="cursor-pointer w-full">
+                            <div class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-600 rounded-lg bg-brand-dark hover:bg-opacity-50 transition-colors">
+                                <svg class="lucide lucide-plus w-8 h-8 text-gray-400 mb-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                <span class="text-sm text-gray-400">Add Images (Max 9)</span>
+                                <span class="text-xs text-gray-500">Max 10MB each</span>
+                            </div>
+                            <input id="file-upload" type="file" class="hidden" multiple accept="image/png, image/jpeg, image/webp" />
+                        </label>
+                    </div>
+
+                    <!-- NEW: Image Count Section (Text-to-Image only) --><div id="image-count-section" class="hidden">
+                        <h3 class="text-lg font-semibold text-white mb-3">Number of Images</h3>
+                        <select id="image-count-select" class="w-full p-3 bg-brand-dark border border-gray-600 rounded-lg text-brand-light focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                            <option value="1">1 Image</option>
+                            <option value="4" selected>4 Images</option>
+                            <option value="8">8 Images</option>
+                        </select>
+                    </div>
+
+                    <!-- Main Prompt Section --><div>
+                        <!-- Updated prompt header --><div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg font-semibold text-white">Main Prompt</h3>
+                            <button id="enhance-prompt-btn" class="flex items-center gap-1.5 text-brand-primary hover:text-yellow-400 font-medium text-sm px-2 py-1 rounded-lg bg-brand-dark hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span id="enhance-btn-text">✨ Enhance</span>
+                                <div id="enhance-loader" class="icon-loader-small hidden"></div>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <textarea id="main-prompt" rows="5" class="w-full p-3 pr-10 bg-brand-dark border border-gray-600 rounded-lg text-brand-light placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="A simple idea (e.g., 'a happy dog') or a detailed prompt..."></textarea>
+                            <button id="copy-prompt-btn" class="absolute top-3 right-3 text-gray-400 hover:text-brand-primary" title="Copy prompt">
+                                <svg class="lucide lucide-copy w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Button --><button id="generate-btn" class="w-full flex items-center justify-center gap-2 bg-brand-primary text-brand-dark font-bold py-3 px-6 rounded-lg hover:bg-yellow-400 transition-all text-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="generate-btn-text">Generate</span>
+                    <div id="loader" class="icon-loader hidden"></div>
+                </button>
+            </div>
+
+            <!-- Right Panel: Output Gallery --><div class="md:col-span-1 lg:col-span-2 bg-brand-secondary border border-gray-700 rounded-lg p-4">
+                <h2 class="text-xl font-bold text-white mb-4">Output Gallery</h2>
+                <!-- MODIFIED: Changed grid columns to show larger images by default --><div id="output-gallery" class="grid grid-cols-1 gap-6 min-h-[400px]"> <!-- Increased gap --><!-- Placeholder --><div id="gallery-placeholder" class="col-span-full flex flex-col items-center justify-center h-full text-gray-500">
+                        <svg class="lucide lucide-image-down w-16 h-16 mb-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v-6"/><path d="m9 14 3 3 3-3"/><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6"/><path d="M10 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/><path d="m18 19-3-3L6 22"/></svg>
+                        <p class="text-lg">Ready for instant generation</p>
+                        <p class="text-sm">Your ultra-fast AI creations appear here!</p>
+                    </div>
+                    <!-- Generated images and loaders will be appended here --></div>
+            </div>
+
+        </div>
+
+        <!-- Toast Notification --><div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg hidden transition-opacity duration-300">
+            Copied to clipboard!
+        </div>
+        
+        <!-- Error Modal --><div id="error-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+            <div class="bg-brand-secondary p-6 rounded-lg shadow-xl w-11/12 md:w-1/3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-red-500">Generation Error</h3>
+                    <button id="close-error-modal" class="text-gray-400 hover:text-white">
+                        <svg class="lucide lucide-x w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+                <p id="error-message" class="text-brand-light">An unknown error occurred. Please try again.</p>
+            </div>
+        </div>
+
+        <!-- NEW: Fullscreen Image Viewer Modal --><div id="fullscreen-modal" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 hidden p-4">
+            <!-- Close Button (Top Right) --><button id="close-modal-btn" class="absolute top-4 right-4 text-white hover:text-brand-primary transition-colors z-20">
+                <svg class="lucide lucide-x w-10 h-10" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+
+            <!-- Main Image --><img id="fullscreen-image" src="" alt="Generated Image Fullscreen" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-xl"/>
+            
+            <!-- REMOVED: Download button from modal as it's now in the gallery --></div>
+
+        <!-- NEW: Footer -->
+        <footer class="text-center py-6 mt-10 border-t border-gray-700">
+            <p class="text-sm text-gray-400">
+                made by Amit Gupta - Made in india ❤️
+            </p>
+        </footer>
+        <!-- END: Footer -->
+
+    </div> <!-- End of #app -->
+
+    <script type="module">
+        // --- START App State ---
+        let state = {
+            mode: 'image-to-image', // 'image-to-image' or 'text-to-image'
+            referenceImages: [], // Array of { data, mimeType }
+            isLoading: false,
+        };
+        const MAX_IMAGES = 9;
+        // --- END App State ---
+
+        // --- START NEW Zoom State ---
+        let zoomState = {
+            scale: 1,
+            x: 0, // translation X
+            y: 0, // translation Y
+            isDragging: false,
+            lastDragX: 0,
+            lastDragY: 0,
+            initialPinchDist: 0,
+        };
+        // --- END NEW Zoom State ---
+
+        // --- START DOM Elements ---
+        const tabImageToImage = document.getElementById('tab-image-to-image');
+        const tabTextToImage = document.getElementById('tab-text-to-image');
+        const imageUploadSection = document.getElementById('image-upload-section');
+        const fileUpload = document.getElementById('file-upload');
+        const imagePreviews = document.getElementById('image-previews');
+        const imageCounter = document.getElementById('image-counter');
+        const mainPrompt = document.getElementById('main-prompt');
+        const copyPromptBtn = document.getElementById('copy-prompt-btn');
+        const generateBtn = document.getElementById('generate-btn');
+        const generateBtnText = document.getElementById('generate-btn-text');
+        const loader = document.getElementById('loader');
+        const outputGallery = document.getElementById('output-gallery');
+        const galleryPlaceholder = document.getElementById('gallery-placeholder');
+        const toast = document.getElementById('toast');
+        const errorModal = document.getElementById('error-modal');
+        const errorMessage = document.getElementById('error-message');
+        const closeErrorModal = document.getElementById('close-error-modal');
+        // LLM Feature Elements
+        const enhancePromptBtn = document.getElementById('enhance-prompt-btn');
+        const enhanceBtnText = document.getElementById('enhance-btn-text');
+        const enhanceLoader = document.getElementById('enhance-loader');
+        // NEW: Image Count Elements
+        const imageCountSection = document.getElementById('image-count-section');
+        const imageCountSelect = document.getElementById('image-count-select');
+        // Fullscreen Modal Elements
+        const fullscreenModal = document.getElementById('fullscreen-modal');
+        const fullscreenImage = document.getElementById('fullscreen-image');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        // REMOVED: downloadLink element
+        // --- END DOM Elements ---
+
+        // --- START Helper Functions ---
+
+        /**
+         * Converts a File object to a base64 string.
+         * @param {File} file - The file to convert.
+         * @returns {Promise<{data: string, mimeType: string}>}
+         */
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve({
+                        data: base64String,
+                        mimeType: file.type
+                    });
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+        /**
+         * Shows a toast notification.
+         * @param {string} message - The message to display.
+         */
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 2000);
+        }
+
+        /**
+         * Shows the error modal.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorModal.classList.remove('hidden');
+        }
+        
+        /**
+         * Sets the loading state of the main generate button.
+         * @param {boolean} isLoading - Whether the app is loading.
+         */
+        function setLoading(isLoading) {
+            state.isLoading = isLoading;
+            generateBtn.disabled = isLoading;
+            if (isLoading) {
+                generateBtnText.classList.add('hidden');
+                loader.classList.remove('hidden');
+                generateBtn.classList.add('animate-pulse'); // ADDED: Animation to button
+            } else {
+                generateBtnText.classList.remove('hidden');
+                loader.classList.add('hidden');
+                generateBtn.classList.remove('animate-pulse'); // REMOVED: Animation from button
+            }
+        }
+        
+        /**
+         * Sets the loading state of the enhance prompt button.
+         * @param {boolean} isLoading - Whether the enhance feature is loading.
+         */
+        function setEnhanceLoading(isLoading) {
+            enhancePromptBtn.disabled = isLoading;
+            if (isLoading) {
+                enhanceBtnText.classList.add('hidden');
+                enhanceLoader.classList.remove('hidden');
+            } else {
+                enhanceBtnText.classList.remove('hidden');
+                enhanceLoader.classList.add('hidden');
+            }
+        }
+
+        // --- END Helper Functions ---
+
+        // --- START Core UI Logic ---
+
+        /**
+         * Updates the UI based on the current mode.
+         */
+        function updateModeUI() {
+            if (state.mode === 'image-to-image') {
+                tabImageToImage.classList.add('active');
+                tabTextToImage.classList.remove('active');
+                imageUploadSection.style.display = 'block';
+                imageCountSection.style.display = 'none'; // NEW: Hide count
+            } else {
+                tabImageToImage.classList.remove('active');
+                tabTextToImage.classList.add('active');
+                imageUploadSection.style.display = 'none';
+                imageCountSection.style.display = 'block'; // NEW: Show count
+            }
+        }
+        
+        /**
+         * Renders the image preview thumbnails.
+         */
+        function renderImagePreviews() {
+            imagePreviews.innerHTML = ''; // Clear existing previews
+            state.referenceImages.forEach((img, index) => {
+                const previewWrapper = document.createElement('div');
+                previewWrapper.className = 'relative aspect-square rounded-lg overflow-hidden border border-gray-600';
+                
+                const imgEl = document.createElement('img');
+                imgEl.src = `data:${img.mimeType};base64,${img.data}`;
+                imgEl.className = 'w-full h-full object-cover';
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'absolute top-1 right-1 bg-black bg-opacity-50 text-white rounded-full p-0.5 hover:bg-opacity-75';
+                removeBtn.title = 'Remove image';
+                removeBtn.innerHTML = '<svg class="lucide lucide-x w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+                removeBtn.onclick = () => removeImage(index);
+                
+                previewWrapper.appendChild(imgEl);
+                previewWrapper.appendChild(removeBtn);
+                imagePreviews.appendChild(previewWrapper);
+            });
+            imageCounter.textContent = `${state.referenceImages.length}/${MAX_IMAGES}`;
+        }
+
+        /**
+         * Handles the selection of files.
+         * @param {Event} e - The file input change event.
+         */
+        async function handleFileSelect(e) {
+            const files = Array.from(e.target.files).slice(0, MAX_IMAGES - state.referenceImages.length);
+            if (files.length === 0) return;
+
+            try {
+                const conversionPromises = files.map(fileToBase64);
+                const newImages = await Promise.all(conversionPromises);
+                state.referenceImages = [...state.referenceImages, ...newImages].slice(0, MAX_IMAGES);
+                renderImagePreviews();
+            } catch (error) {
+                console.error("Error reading files:", error);
+                showError("There was an error reading your image files.");
+            }
+            // Reset file input to allow re-uploading the same file
+            e.target.value = null;
+        }
+
+        /**
+         * Removes an image from the reference list.
+         * @param {number} index - The index of the image to remove.
+         */
+        function removeImage(index) {
+            state.referenceImages.splice(index, 1);
+            renderImagePreviews();
+        }
+
+        /**
+         * NEW: Creates a gallery item with image and download button.
+         * @param {string} imageUrl - The base64 data URL of the image.
+         * @returns {HTMLElement} - The complete gallery item.
+         */
+        function createGalleryItem(imageUrl) {
+            const itemContainer = document.createElement('div');
+            itemContainer.className = 'flex flex-col gap-3'; // Gap between image and button
+
+            // Wrapper for image (for click/hover)
+            const imgWrapper = document.createElement('div');
+            imgWrapper.className = 'relative rounded-lg overflow-hidden border border-gray-700 group cursor-pointer bg-brand-dark';
+            
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.className = 'w-full h-auto transition-opacity duration-500 opacity-100'; // Start visible
+            
+            // Add hover overlay with "View" icon
+            const overlay = document.createElement('div');
+            overlay.className = 'absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100';
+            overlay.innerHTML = `<svg class="lucide lucide-eye w-10 h-10 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+            
+            // Add click listener to open modal
+            imgWrapper.onclick = () => openFullscreenView(imageUrl);
+
+            imgWrapper.appendChild(img);
+            imgWrapper.appendChild(overlay);
+
+            // Create Download Button
+            const downloadLink = document.createElement('a');
+            downloadLink.href = imageUrl;
+            downloadLink.download = `nano-banana-${Date.now()}.png`;
+            downloadLink.className = 'flex items-center justify-center gap-2 bg-brand-primary text-brand-dark font-bold py-2 px-4 rounded-lg hover:bg-yellow-400 transition-all text-base w-full';
+            downloadLink.innerHTML = `
+                <svg class="lucide lucide-download w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                Download Image (डाउनलोड)
+            `;
+
+            itemContainer.appendChild(imgWrapper);
+            itemContainer.appendChild(downloadLink);
+
+            return itemContainer;
+        }
+
+        /**
+         * NEW: Creates a loading placeholder for the gallery.
+         * @returns {HTMLElement} - The loader element.
+         */
+        function createGalleryLoader() {
+            const loaderWrapper = document.createElement('div');
+            loaderWrapper.className = 'gallery-item-loader flex flex-col items-center justify-center w-full min-h-[300px] bg-brand-dark border border-brand-secondary rounded-lg p-4';
+            loaderWrapper.innerHTML = `
+                <div class="w-full bg-gray-700 rounded-full h-2.5 mb-4 overflow-hidden">
+                    <div class="progress-bar bg-brand-primary h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <p class="text-gray-400 text-lg">Generating image... <span class="progress-text">0%</span></p>
+                <p class="text-gray-500 text-sm">(इमेज बन रही है...)</p>
+            `;
+            return loaderWrapper;
+        }
+        
+        /**
+         * NEW: Simulates progress on a loader element.
+         * @param {HTMLElement} loaderElement - The loader element.
+         * @returns {Function} - A function to call to stop the simulation.
+         */
+        function simulateProgress(loaderElement) {
+            const progressBar = loaderElement.querySelector('.progress-bar');
+            const progressText = loaderElement.querySelector('.progress-text');
+            if (!progressBar || !progressText) return () => {};
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (progress < 99) {
+                    progress += Math.floor(Math.random() * 5) + 1; // Random increment
+                    progress = Math.min(progress, 99); // Cap at 99
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}%`;
+                }
+            }, 300); // Update every 300ms
+
+            // Return a function to stop and complete
+            return () => {
+                clearInterval(interval);
+                progressBar.style.width = '100%';
+                progressText.textContent = '100%';
+            };
+        }
+
+
+        /**
+         * NEW: Shows an error in a gallery item.
+         * @param {HTMLElement} container - The gallery item container (loader).
+         * @param {Error} error - The error object.
+         */
+        function showGalleryError(container, error) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center text-red-500">
+                    <svg class="lucide lucide-alert-triangle w-16 h-16 mb-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                    <p class="text-lg font-semibold">Generation Failed</p>
+                    <p class="text-sm">(उत्पादन विफल)</p>
+                    <p class="text-xs text-gray-400 mt-2">${error.message}</p>
+                </div>
+            `;
+            container.classList.remove('bg-brand-dark');
+            container.classList.add('bg-red-900', 'bg-opacity-20', 'border-red-500');
+            console.error("Gallery Item Error:", error.message);
+        }
+
+
+        // --- END Core UI Logic ---
+
+        // --- START Fullscreen Modal Logic ---
+
+        /**
+         * Opens the fullscreen image viewer.
+         * @param {string} imageUrl - The data URL of the image to display.
+         */
+        function openFullscreenView(imageUrl) {
+            fullscreenImage.src = imageUrl;
+            fullscreenModal.classList.remove('hidden');
+            
+            // NEW: Reset zoom state every time
+            zoomState = { scale: 1, x: 0, y: 0, isDragging: false, lastDragX: 0, lastDragY: 0, initialPinchDist: 0 };
+            updateImageTransform(); // Apply reset
+            fullscreenModal.classList.remove('zoomed', 'grabbing');
+        }
+
+        /**
+         * Closes the fullscreen image viewer.
+         */
+        function closeFullscreenView() {
+            fullscreenModal.classList.add('hidden');
+            fullscreenImage.src = ''; // Clear src to stop loading
+
+            // NEW: Reset zoom state on close
+            zoomState = { scale: 1, x: 0, y: 0, isDragging: false, lastDragX: 0, lastDragY: 0, initialPinchDist: 0 };
+            updateImageTransform();
+            fullscreenModal.classList.remove('zoomed', 'grabbing');
+        }
+
+        // --- END Fullscreen Modal Logic ---
+        
+        // --- START NEW Zoom/Pan Logic ---
+
+        /**
+         * Applies the current zoomState transform to the image.
+         */
+        function updateImageTransform() {
+            fullscreenImage.style.transform = `translate(${zoomState.x}px, ${zoomState.y}px) scale(${zoomState.scale})`;
+            // Disable transition during drag/pinch for responsiveness
+            fullscreenImage.style.transition = (zoomState.isDragging || zoomState.initialPinchDist > 0) ? 'none' : 'transform 0.1s ease-out';
+
+            if (zoomState.scale > 1) {
+                fullscreenModal.classList.add('zoomed');
+            } else {
+                fullscreenModal.classList.remove('zoomed', 'grabbing');
+            }
+        }
+
+        /**
+         * Handles mouse wheel for zooming. (Desktop)
+         */
+        function handleWheelZoom(event) {
+            event.preventDefault(); // Page scroll ko rokein
+            
+            const scaleAmount = 0.1;
+            const newScale = event.deltaY < 0 
+                ? zoomState.scale * (1 + scaleAmount) // Zoom In
+                : zoomState.scale / (1 + scaleAmount); // Zoom Out
+
+            zoomState.scale = Math.max(1, Math.min(newScale, 10)); // Scale ko 1x aur 10x ke beech rakhein
+
+            if (zoomState.scale === 1) {
+                // Fully zoom out hone par position reset karein
+                zoomState.x = 0;
+                zoomState.y = 0;
+            }
+            
+            updateImageTransform();
+        }
+
+        /**
+         * Handles mouse down for panning. (Desktop)
+         */
+        function handleMouseDown(event) {
+            if (event.target !== fullscreenImage || zoomState.scale <= 1) return; // Sirf image par aur zoom hone par pan karein
+            event.preventDefault();
+            zoomState.isDragging = true;
+            zoomState.lastDragX = event.clientX;
+            zoomState.lastDragY = event.clientY;
+            fullscreenModal.classList.add('grabbing');
+        }
+
+        /**
+         * Handles mouse move for panning. (Desktop)
+         */
+        function handleMouseMove(event) {
+            if (!zoomState.isDragging) return;
+            event.preventDefault();
+            const deltaX = event.clientX - zoomState.lastDragX;
+            // FIX: Corrected vertical panning
+            const deltaY = event.clientY - zoomState.lastDragY;
+            
+            zoomState.x += deltaX;
+            zoomState.y += deltaY;
+            
+            zoomState.lastDragX = event.clientX;
+            zoomState.lastDragY = event.clientY;
+            
+            updateImageTransform();
+        }
+
+        /**
+         * Handles mouse up to stop panning. (Desktop)
+         */
+        function handleMouseUp(event) {
+            if (zoomState.isDragging) {
+                zoomState.isDragging = false;
+                fullscreenModal.classList.remove('grabbing');
+                updateImageTransform(); // Transition ko wapas apply karein
+            }
+        }
+        
+        /**
+         * Calculates distance between two touch points. (Mobile)
+         */
+        function getPinchDist(event) {
+            const dx = event.touches[0].clientX - event.touches[1].clientX;
+            const dy = event.touches[0].clientY - event.touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        /**
+         * Handles touch start for pinch or pan. (Mobile)
+         */
+        function handleTouchStart(event) {
+            if (event.touches.length === 2) {
+                // Pinch start
+                event.preventDefault();
+                zoomState.isDragging = false; // Pan rokein
+                zoomState.initialPinchDist = getPinchDist(event);
+            } else if (event.touches.length === 1 && zoomState.scale > 1) {
+                // Pan start
+                event.preventDefault();
+                zoomState.isDragging = true;
+                zoomState.lastDragX = event.touches[0].clientX;
+                zoomState.lastDragY = event.touches[0].clientY;
+                fullscreenModal.classList.add('grabbing');
+            }
+        }
+        
+        /**
+         * Handles touch move for pinch or pan. (Mobile)
+         */
+        function handleTouchMove(event) {
+            if (event.touches.length === 2) {
+                // Pinching
+                event.preventDefault();
+                const newDist = getPinchDist(event);
+                const newScale = zoomState.scale * (newDist / (zoomState.initialPinchDist + 0.0001)); // 0 se divide se bachein
+                
+                zoomState.scale = Math.max(1, Math.min(newScale, 10)); // Clamp scale
+                zoomState.initialPinchDist = newDist;
+                
+                if (zoomState.scale === 1) {
+                    zoomState.x = 0;
+                    zoomState.y = 0;
+                }
+                updateImageTransform();
+                
+            } else if (event.touches.length === 1 && zoomState.isDragging) {
+                // Panning
+                event.preventDefault();
+                const deltaX = event.touches[0].clientX - zoomState.lastDragX;
+                const deltaY = event.touches[0].clientY - zoomState.lastDragY;
+                
+                zoomState.x += deltaX;
+                zoomState.y += deltaY;
+                
+                zoomState.lastDragX = event.touches[0].clientX;
+                zoomState.lastDragY = event.touches[0].clientY;
+                
+                updateImageTransform();
+            }
+        }
+        
+        /**
+         * Handles touch end to stop pinch or pan. (Mobile)
+         */
+        function handleTouchEnd(event) {
+            if (zoomState.isDragging) {
+                zoomState.isDragging = false;
+                fullscreenModal.classList.remove('grabbing');
+                updateImageTransform(); // Transition wapas apply karein
+            }
+            if (zoomState.initialPinchDist > 0) {
+                zoomState.initialPinchDist = 0; // Pinch reset karein
+            }
+        }
+
+        // --- END NEW Zoom/Pan Logic ---
+        
+        // --- START Gemini API Logic ---
+
+        const API_KEY = "AIzaSyDjKATNatLSddfG46Itjr30llIGjGj--E4"; // Kept empty, will be populated by the environment.
+        
+        // Image API (Nano Banana)
+        const IMAGE_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${API_KEY}`;
+        
+        // Text API (LLM)
+        const TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        const PROMPT_ENHANCER_SYSTEM_PROMPT = "You are an expert prompt engineer for generative AI image models. Your goal is to take a user's simple idea and expand it into a rich, detailed, and descriptive prompt. Focus on visual details, lighting, style, composition, and cinematic quality. Respond with *only* the new, enhanced prompt and nothing else. Do not use markdown or add any conversational text.";
+
+        /**
+         * Calls the Gemini Image API with exponential backoff.
+         * @param {object} payload - The payload to send to the API.
+         * @param {number} retries - Number of retries left.
+         * @param {number} delay - Current delay in ms.
+         * @returns {Promise<string>} - The base64 data URL of the generated image.
+         */
+        async function callGeminiImageAPI(payload, retries = 5, delay = 1000) {
+            try {
+                const response = await fetch(IMAGE_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429 || response.status >= 500) {
+                        throw new Error(`Retryable error: ${response.status}`);
+                    }
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log("Full API Response:", result); // Log full response for debugging
+
+                // Check for safety ratings or other reasons
+                const candidate = result?.candidates?.[0];
+                if (candidate?.finishReason && candidate.finishReason !== "STOP") {
+                    throw new Error(`Generation stopped: ${candidate.finishReason}. Check safety ratings.`);
+                }
+
+                const base64Data = candidate?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+
+                if (!base64Data) {
+                    // Check if there's text instead
+                    const textPart = candidate?.content?.parts?.find(p => p.text)?.text;
+                    if (textPart) {
+                        throw new Error(`API returned text instead of image: ${textPart}`);
+                    }
+                    throw new Error("No image data found in API response.");
+                }
+                
+                return `data:image/png;base64,${base64Data}`;
+
+            } catch (error) {
+                if (retries > 0 && error.message.startsWith('Retryable error')) {
+                    await new Promise(res => setTimeout(res, delay));
+                    return callGeminiImageAPI(payload, retries - 1, delay * 2);
+                }
+                console.error("Image API Call Error:", error);
+                throw error; // Re-throw the final error
+            }
+        }
+        
+        /**
+         * Calls the Gemini Text API with exponential backoff.
+         * @param {object} payload - The payload to send to the API.
+         * @param {number} retries - Number of retries left.
+         * @param {number} delay - Current delay in ms.
+         * @returns {Promise<string>} - The generated text response.
+         */
+        async function callGeminiTextAPI(payload, retries = 5, delay = 1000) {
+            try {
+                const response = await fetch(TEXT_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429 || response.status >= 500) {
+                        throw new Error(`Retryable error: ${response.status}`);
+                    }
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const candidate = result?.candidates?.[0];
+                if (candidate?.finishReason && candidate.finishReason !== "STOP") {
+                    throw new Error(`Text generation stopped: ${candidate.finishReason}.`);
+                }
+
+                const text = candidate?.content?.parts?.[0]?.text;
+
+                if (!text) {
+                    throw new Error("No text content found in API response.");
+                }
+                
+                return text.trim();
+
+            } catch (error) {
+                if (retries > 0 && error.message.startsWith('Retryable error')) {
+                    await new Promise(res => setTimeout(res, delay));
+                    return callGeminiTextAPI(payload, retries - 1, delay * 2);
+                }
+                console.error("Text API Call Error:", error);
+                throw error; // Re-throw the final error
+            }
+        }
+
+        /**
+         * Main image generation logic.
+         */
+        async function handleGenerate() {
+            const prompt = mainPrompt.value.trim();
+            if (!prompt) {
+                showError("Please enter a prompt.");
+                return;
+            }
+            
+            setLoading(true);
+            outputGallery.innerHTML = ''; // Clear previous results
+            
+            const apiPromises = [];
+            const loaderPlaceholders = [];
+            const progressSimStops = []; // To stop simulations
+
+            try {
+                if (state.mode === 'text-to-image') {
+                    // --- Text to Image (Batch) ---
+                    const imageCount = parseInt(imageCountSelect.value, 10);
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+                    };
+                    
+                    for (let i = 0; i < imageCount; i++) {
+                        const loader = createGalleryLoader();
+                        outputGallery.appendChild(loader);
+                        loaderPlaceholders.push(loader);
+                        progressSimStops.push(simulateProgress(loader)); // Start simulation
+                        apiPromises.push(callGeminiImageAPI(payload));
+                    }
+
+                } else {
+                    // --- Image to Image (Batch) ---
+                    if (state.referenceImages.length === 0) {
+                        showError("Please add at least one reference image for Image-to-Image mode.");
+                        setLoading(false);
+                        return;
+                    }
+
+                    state.referenceImages.forEach(image => {
+                        const loader = createGalleryLoader();
+                        outputGallery.appendChild(loader);
+                        loaderPlaceholders.push(loader);
+                        progressSimStops.push(simulateProgress(loader)); // Start simulation
+                        
+                        const payload = {
+                            contents: [{
+                                parts: [
+                                    { text: prompt },
+                                    { inlineData: { mimeType: image.mimeType, data: image.data } }
+                                ]
+                            }],
+                            generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+                        };
+                        apiPromises.push(callGeminiImageAPI(payload));
+                    });
+                }
+
+                // Wait for all promises to resolve
+                const results = await Promise.allSettled(apiPromises);
+                let hasSuccess = false;
+
+                // NEW: Process results and replace loaders
+                results.forEach((result, i) => {
+                    const loader = loaderPlaceholders[i];
+                    const stopSim = progressSimStops[i];
+                    
+                    stopSim(); // Stop the simulation
+
+                    if (result.status === 'fulfilled') {
+                        const newItem = createGalleryItem(result.value);
+                        loader.replaceWith(newItem); // Swap loader with the final item
+                        hasSuccess = true;
+                    } else {
+                        showGalleryError(loader, result.reason);
+                    }
+                });
+
+                if (!hasSuccess && results.length > 0) {
+                    throw new Error("All image generations failed. Check gallery for details.");
+                }
+
+                // NEW: Clear reference images after successful I2I generation
+                // (Naya Feature: Safal I2I generation ke baad reference images ko clear karein)
+                if (state.mode === 'image-to-image' && hasSuccess) {
+                    state.referenceImages = [];
+                    renderImagePreviews(); // UI ko update karein
+                }
+
+            } catch (error) {
+                console.error("Generation failed:", error);
+                // Stop any remaining simulations on global failure
+                progressSimStops.forEach(stop => stop());
+                showError(`Generation failed: ${error.message}`);
+                galleryPlaceholder.classList.remove('hidden'); // Show placeholder again
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        /**
+         * Handles the prompt enhancement logic.
+         */
+        async function handleEnhancePrompt() {
+            const currentPrompt = mainPrompt.value.trim();
+            if (!currentPrompt) {
+                showError("Please enter a simple idea in the prompt box to enhance.");
+                return;
+            }
+            
+            setEnhanceLoading(true);
+            
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: currentPrompt }] }],
+                    systemInstruction: {
+                        parts: [{ text: PROMPT_ENHANCER_SYSTEM_PROMPT }]
+                    }
+                };
+                
+                const enhancedPrompt = await callGeminiTextAPI(payload);
+                mainPrompt.value = enhancedPrompt; // Update the textarea
+                
+            } catch (error) {
+                console.error("Prompt enhancement failed:", error);
+                showError(`Could not enhance prompt: ${error.message}`);
+            } finally {
+                setEnhanceLoading(false);
+            }
+        }
+        
+        // --- END Gemini API Logic ---
+
+        // --- START Event Listeners ---
+
+        tabImageToImage.onclick = () => {
+            state.mode = 'image-to-image';
+            updateModeUI();
+        };
+
+        tabTextToImage.onclick = () => {
+            state.mode = 'text-to-image';
+            updateModeUI();
+        };
+
+        fileUpload.onchange = handleFileSelect;
+
+        generateBtn.onclick = handleGenerate;
+        
+        // Event listener for the enhance button
+        enhancePromptBtn.onclick = handleEnhancePrompt;
+        
+        copyPromptBtn.onclick = () => {
+            navigator.clipboard.writeText(mainPrompt.value)
+                .then(() => showToast("Prompt copied to clipboard!"))
+                .catch(err => console.error('Failed to copy text: ', err));
+        };
+        
+        closeErrorModal.onclick = () => {
+            errorModal.classList.add('hidden');
+        };
+
+        // Event listeners for fullscreen modal
+        closeModalBtn.onclick = closeFullscreenView;
+        fullscreenModal.onclick = (e) => {
+            // Close if clicking on the background (the modal itself)
+            if (e.target === fullscreenModal) {
+                closeFullscreenView();
+            }
+        };
+
+        // --- END Event Listeners ---
+
+        // --- START Initializer ---
+        function init() {
+            updateModeUI();
+            setEnhanceLoading(false); // Set initial state for enhance button
+            // Use correct lib for icons
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            // Apply styles for active/inactive tabs
+            const style = document.createElement('style');
+            style.innerHTML = `
+                .tab-btn {
+                    padding: 0.75rem;
+                    border-radius: 0.5rem;
+                    font-weight: 500;
+                    color: #9CA3AF; /* text-gray-400 */
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    transition: all 0.2s ease-in-out;
+                }
+                .tab-btn:hover {
+                    background-color: #3a3a3e; /* darker brand-secondary */
+                    color: #FFF;
+                }
+                .tab-btn.active {
+                    background-color: #f3b61a; /* brand-primary */
+                    color: #1a1a1d; /* brand-dark */
+                    font-weight: 600;
+                }
+                /* Styles for small loaders */
+                .icon-loader, .icon-loader-small {
+                    border: 2px solid #f3b61a;
+                    border-top: 2px solid transparent;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+                .icon-loader { width: 24px; height: 24px; }
+                .icon-loader-small { width: 16px; height: 16px; border-width: 2px; }
+                
+                /* Styles for gallery loader */
+                .spinner {
+                    border: 4px solid rgba(255, 255, 255, 0.2);
+                    border-top: 4px solid #f3b61a;
+                    border-radius: 50%;
+                    width: 48px;
+                    height: 48px;
+                    animation: spin 1s linear infinite;
+                }
+                /* Progress bar transition */
+                .progress-bar {
+                    transition: width 0.3s ease-in-out;
+                }
+            `;
+            document.head.appendChild(style);
+
+            // --- NEW: Add Zoom/Pan Event Listeners to Modal ---
+            fullscreenModal.addEventListener('wheel', handleWheelZoom, { passive: false });
+            // Mouse Pan
+            fullscreenModal.addEventListener('mousedown', handleMouseDown);
+            window.addEventListener('mousemove', handleMouseMove); // Window par sunein taaki image ke bahar bhi drag kar sakein
+            window.addEventListener('mouseup', handleMouseUp); // Window par sunein taaki kahin bhi release kar sakein
+            // Touch Pinch/Pan
+            fullscreenModal.addEventListener('touchstart', handleTouchStart, { passive: false });
+            fullscreenModal.addEventListener('touchmove', handleTouchMove, { passive: false });
+            fullscreenModal.addEventListener('touchend', handleTouchEnd);
+        }
+
+        init();
+        // --- END Initializer ---
+
+    </script>
+</body>
+</html>
